@@ -96,8 +96,13 @@ Return the translations in this exact JSON format:
 
 Rules:
 - Maintain original formatting (spaces, punctuation, etc.)
-- Consider the context for accurate translation
+- Consider the context for accurate translation:
+  * "header": Table headers, column names
+  * "body": Regular cell content
+  * "footer": Summary or footer content
+  * "sheet_name": Excel sheet/tab names (keep concise and descriptive)
 - Keep technical terms consistent
+- For sheet names, use concise, professional English names
 - Use the additional context provided to improve accuracy
 - Return only the JSON object, no additional text"""
 

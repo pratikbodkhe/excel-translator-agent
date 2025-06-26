@@ -153,6 +153,32 @@ class ExcelTranslator:
 
         return translations
 
+    def _translate_sheet_name(self, sheet_name: str) -> str:
+        """Translate a sheet name."""
+        # Check cache first
+        cached = self.cache.get_translation(sheet_name, "sheet_name")
+        if cached:
+            logger.debug(f"Cache hit for sheet name '{sheet_name}': {cached}")
+            return cached
+
+        # Create a single cell data for sheet name translation
+        cell_data = CellData(
+            sheet_name="",  # Empty for sheet names
+            cell_ref="sheet_name",
+            content=sheet_name,
+            context="sheet_name"
+        )
+
+        # Translate using batch processor
+        translations = self.batch_processor.translate_batch([cell_data])
+        translated_name = translations.get("!sheet_name", sheet_name)
+
+        # Store in cache
+        self.cache.store_translation(sheet_name, "sheet_name", translated_name)
+
+        logger.debug(f"Translated sheet name '{sheet_name}' to '{translated_name}'")
+        return translated_name
+
     def translate_excel(self, input_path: str, output_path: str):
         """Main translation method that handles the entire process."""
         # Load workbook
@@ -160,11 +186,15 @@ class ExcelTranslator:
 
         # Create a copy of the workbook to preserve formatting
         wb_copy = openpyxl.Workbook()
-        wb_copy.remove(wb_copy.active)  # Remove default sheet
+        if wb_copy.active:
+            wb_copy.remove(wb_copy.active)  # Remove default sheet
 
         for sheet_name in wb.sheetnames:
             original_sheet = wb[sheet_name]
-            new_sheet = wb_copy.create_sheet(sheet_name)
+
+            # Translate sheet name
+            translated_sheet_name = self._translate_sheet_name(sheet_name)
+            new_sheet = wb_copy.create_sheet(translated_sheet_name)
 
             # Copy styles, formatting, etc.
             for row_idx, row in enumerate(original_sheet.iter_rows(), start=1):
