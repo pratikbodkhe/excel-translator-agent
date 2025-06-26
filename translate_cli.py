@@ -9,10 +9,10 @@ import os
 import sys
 from pathlib import Path
 
-from cache_manager import MultiLayerCache, RedisCache, PostgreSQLCache, NoCache
-from llm_providers import create_llm_provider
-from excel_translator import ExcelTranslator
-from config.config import config
+from src.cache_manager import MultiLayerCache, RedisCache, PostgreSQLCache, NoCache
+from src.llm_providers import BaseLLMProvider, create_llm_provider
+from src.excel_translator import ExcelTranslator
+from src.config.config import config
 
 # Setup logging
 logging.basicConfig(
@@ -55,8 +55,8 @@ def setup_cache():
 def setup_llm_provider():
     """Setup LLM provider based on configuration."""
     try:
-        provider = create_llm_provider(
-            config.LLM_PROVIDER,
+        provider: BaseLLMProvider = create_llm_provider(
+            provider_name=config.LLM_PROVIDER,
             api_key=config.OPENAI_API_KEY if config.LLM_PROVIDER == "openai" else config.ANTHROPIC_API_KEY,
             model=config.LLM_MODEL
         )

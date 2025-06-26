@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 import redis
 import psycopg2
 
-from config.config import config
+from src.config.config import config
 
 logger = logging.getLogger(__name__)
 

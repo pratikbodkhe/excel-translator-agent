@@ -278,7 +278,7 @@ def create_llm_provider(provider_name: str, **kwargs) -> BaseLLMProvider:
     """Factory function to create LLM providers."""
     if provider_name.lower() == "openai":
         api_key = kwargs.get("api_key")
-        model = kwargs.get("model", "gpt-4o")
+        model = kwargs.get("model", "gpt-4.1")
         if not api_key:
             raise ValueError("OpenAI API key is required")
         return OpenAIProvider(api_key, model)

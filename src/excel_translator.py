@@ -5,15 +5,15 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import logging
 
-from cache_manager import MultiLayerCache, RedisCache, PostgreSQLCache, NoCache
-from llm_providers import (
+from src.cache_manager import MultiLayerCache, RedisCache, PostgreSQLCache, NoCache
+from src.llm_providers import (
     BaseLLMProvider,
     TranslationRequest,
     BatchTranslationRequest,
     BatchTranslationResponse,
     create_llm_provider
 )
-from config.config import config
+from src.config.config import config
 
 logger = logging.getLogger(__name__)
 
