@@ -80,6 +80,8 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("--batch-size", type=int, default=20, help="Batch size for translation")
     parser.add_argument("--mock", action="store_true", help="Use mock LLM provider for testing")
+    parser.add_argument("--context", help="Path to context.md file for additional translation context")
+    parser.add_argument("--clean", action="store_true", help="Clear all caches (Redis and PostgreSQL) before translation")
 
     args = parser.parse_args()
 
@@ -111,6 +113,25 @@ def main():
     # Setup components
     cache = setup_cache()
 
+    # Clear caches if requested
+    if args.clean:
+        logger.info("Clearing all caches...")
+        cache.clear()
+        logger.info("Caches cleared successfully")
+
+    # Load additional context if provided
+    additional_context = ""
+    if args.context:
+        context_path = Path(args.context)
+        if context_path.exists():
+            try:
+                additional_context = context_path.read_text(encoding='utf-8')
+                logger.info(f"Loaded additional context from {context_path} ({len(additional_context)} characters)")
+            except Exception as e:
+                logger.warning(f"Failed to read context file {context_path}: {e}")
+        else:
+            logger.warning(f"Context file not found: {context_path}")
+
     if args.mock:
         from llm_providers import MockProvider
         llm_provider = MockProvider()
@@ -125,7 +146,8 @@ def main():
     translator = ExcelTranslator(
         llm_provider=llm_provider,
         cache=cache,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        additional_context=additional_context
     )
 
     # Perform translation

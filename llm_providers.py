@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TranslationRequest:
     """Single translation request item."""
-
     id: str
     text: str
     context: str
@@ -24,7 +23,6 @@ class TranslationRequest:
 @dataclass
 class TranslationResponse:
     """Single translation response item."""
-
     id: str
     text: str
 
@@ -32,17 +30,14 @@ class TranslationResponse:
 @dataclass
 class BatchTranslationRequest:
     """Batch translation request."""
-
     translations: List[TranslationRequest]
     batch_id: str
     metadata: Dict
-    additional_context: str = ""
 
 
 @dataclass
 class BatchTranslationResponse:
     """Batch translation response."""
-
     translations: List[TranslationResponse]
     batch_id: str
     tokens_used: int = 0
@@ -52,9 +47,7 @@ class BaseLLMProvider(ABC):
     """Abstract base class for LLM providers."""
 
     @abstractmethod
-    def translate_batch(
-        self, request: BatchTranslationRequest
-    ) -> BatchTranslationResponse:
+    def translate_batch(self, request: BatchTranslationRequest) -> BatchTranslationResponse:
         """Translate a batch of text items."""
         pass
 
@@ -62,46 +55,6 @@ class BaseLLMProvider(ABC):
     def is_available(self) -> bool:
         """Check if the provider is available and configured."""
         pass
-
-    def _create_prompt(self, request: BatchTranslationRequest, intro_text: str = "") -> str:
-        """Create translation prompt with common structure."""
-        items_text = ""
-        for item in request.translations:
-            items_text += f'\n{{"id": "{item.id}", "text": "{item.text}", "context": "{item.context}"}}'
-
-        additional_context_section = ""
-        if request.additional_context:
-            additional_context_section = f"""
-
-Additional Context:
-{request.additional_context}
-
-Use this additional context to improve translation accuracy and maintain consistency with domain-specific terminology."""
-
-        # Use default intro if none provided
-        if not intro_text:
-            intro_text = "Translate the following Japanese text items to English. Preserve all formatting and maintain context awareness."
-
-        prompt = f"""{intro_text}{additional_context_section}
-
-Input items:{items_text}
-
-Return the translations in this exact JSON format:
-{{
-  "translations": [
-    {{"id": "ITEM_ID", "text": "TRANSLATED_TEXT"}},
-    ...
-  ]
-}}
-
-Rules:
-- Maintain original formatting (spaces, punctuation, etc.)
-- Consider the context for accurate translation
-- Keep technical terms consistent
-- Use the additional context provided to improve accuracy
-- Return only the JSON object, no additional text"""
-
-        return prompt
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -117,12 +70,9 @@ class OpenAIProvider(BaseLLMProvider):
         if self._client is None:
             try:
                 import openai
-
                 self._client = openai.OpenAI(api_key=self.api_key)
             except ImportError:
-                raise ImportError(
-                    "OpenAI package not installed. Run: pip install openai"
-                )
+                raise ImportError("OpenAI package not installed. Run: pip install openai")
         return self._client
 
     def is_available(self) -> bool:
@@ -133,9 +83,7 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception:
             return False
 
-    def translate_batch(
-        self, request: BatchTranslationRequest
-    ) -> BatchTranslationResponse:
+    def translate_batch(self, request: BatchTranslationRequest) -> BatchTranslationResponse:
         """Translate batch using OpenAI."""
         try:
             client = self._get_client()
@@ -149,12 +97,12 @@ class OpenAIProvider(BaseLLMProvider):
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a precise Japanese to English translator. Preserve all formatting tokens and maintain context awareness. Return only valid JSON.",
+                        "content": "You are a precise Japanese to English translator. Preserve all formatting tokens and maintain context awareness. Return only valid JSON."
                     },
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.1,
+                temperature=0.1
             )
 
             # Parse response
@@ -170,15 +118,42 @@ class OpenAIProvider(BaseLLMProvider):
             return BatchTranslationResponse(
                 translations=translations,
                 batch_id=request.batch_id,
-                tokens_used=response.usage.total_tokens if response.usage else 0,
+                tokens_used=response.usage.total_tokens if response.usage else 0
             )
 
         except Exception as e:
             logger.error(f"OpenAI translation error: {e}")
             return BatchTranslationResponse(
-                translations=[], batch_id=request.batch_id, tokens_used=0
+                translations=[],
+                batch_id=request.batch_id,
+                tokens_used=0
             )
 
+    def _create_prompt(self, request: BatchTranslationRequest) -> str:
+        """Create translation prompt for OpenAI."""
+        items_text = ""
+        for item in request.translations:
+            items_text += f'\n{{"id": "{item.id}", "text": "{item.text}", "context": "{item.context}"}}'
+
+        prompt = f"""Translate the following Japanese text items to English. Preserve all formatting and maintain context awareness.
+
+Input items:{items_text}
+
+Return the translations in this exact JSON format:
+{{
+  "translations": [
+    {{"id": "ITEM_ID", "text": "TRANSLATED_TEXT"}},
+    ...
+  ]
+}}
+
+Rules:
+- Maintain original formatting (spaces, punctuation, etc.)
+- Consider the context for accurate translation
+- Keep technical terms consistent
+- Return only the JSON object, no additional text"""
+
+        return prompt
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -194,12 +169,9 @@ class AnthropicProvider(BaseLLMProvider):
         if self._client is None:
             try:
                 import anthropic
-
                 self._client = anthropic.Anthropic(api_key=self.api_key)
             except ImportError:
-                raise ImportError(
-                    "Anthropic package not installed. Run: pip install anthropic"
-                )
+                raise ImportError("Anthropic package not installed. Run: pip install anthropic")
         return self._client
 
     def is_available(self) -> bool:
@@ -210,9 +182,7 @@ class AnthropicProvider(BaseLLMProvider):
         except Exception:
             return False
 
-    def translate_batch(
-        self, request: BatchTranslationRequest
-    ) -> BatchTranslationResponse:
+    def translate_batch(self, request: BatchTranslationRequest) -> BatchTranslationResponse:
         """Translate batch using Anthropic Claude."""
         try:
             client = self._get_client()
@@ -225,7 +195,9 @@ class AnthropicProvider(BaseLLMProvider):
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.1,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
 
             # Parse response
@@ -241,19 +213,42 @@ class AnthropicProvider(BaseLLMProvider):
             return BatchTranslationResponse(
                 translations=translations,
                 batch_id=request.batch_id,
-                tokens_used=(
-                    response.usage.input_tokens + response.usage.output_tokens
-                    if response.usage
-                    else 0
-                ),
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens if response.usage else 0
             )
 
         except Exception as e:
             logger.error(f"Anthropic translation error: {e}")
             return BatchTranslationResponse(
-                translations=[], batch_id=request.batch_id, tokens_used=0
+                translations=[],
+                batch_id=request.batch_id,
+                tokens_used=0
             )
 
+    def _create_prompt(self, request: BatchTranslationRequest) -> str:
+        """Create translation prompt for Anthropic."""
+        items_text = ""
+        for item in request.translations:
+            items_text += f'\n{{"id": "{item.id}", "text": "{item.text}", "context": "{item.context}"}}'
+
+        prompt = f"""You are a precise Japanese to English translator. Translate the following Japanese text items to English while preserving all formatting and maintaining context awareness.
+
+Input items:{items_text}
+
+Return the translations in this exact JSON format:
+{{
+  "translations": [
+    {{"id": "ITEM_ID", "text": "TRANSLATED_TEXT"}},
+    ...
+  ]
+}}
+
+Rules:
+- Maintain original formatting (spaces, punctuation, etc.)
+- Consider the context for accurate translation
+- Keep technical terms consistent
+- Return only the JSON object, no additional text"""
+
+        return prompt
 
 
 class MockProvider(BaseLLMProvider):
@@ -265,9 +260,7 @@ class MockProvider(BaseLLMProvider):
     def is_available(self) -> bool:
         return True
 
-    def translate_batch(
-        self, request: BatchTranslationRequest
-    ) -> BatchTranslationResponse:
+    def translate_batch(self, request: BatchTranslationRequest) -> BatchTranslationResponse:
         """Mock translation - just adds [TRANSLATED] prefix."""
         translations = [
             TranslationResponse(id=item.id, text=f"[TRANSLATED] {item.text}")
@@ -277,7 +270,7 @@ class MockProvider(BaseLLMProvider):
         return BatchTranslationResponse(
             translations=translations,
             batch_id=request.batch_id,
-            tokens_used=len(request.translations) * 10,  # Mock token count
+            tokens_used=len(request.translations) * 10  # Mock token count
         )
 
 

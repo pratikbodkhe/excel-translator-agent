@@ -25,9 +25,10 @@ class CellData:
     context: str = ""  # e.g., "header", "footer", etc.
 
 class LLMBatchProcessor:
-    def __init__(self, llm_provider: BaseLLMProvider, max_batch_size: int = 50):
+    def __init__(self, llm_provider: BaseLLMProvider, max_batch_size: int = 50, additional_context: str = ""):
         self.llm_provider = llm_provider
         self.max_batch_size = max_batch_size
+        self.additional_context = additional_context
 
     def translate_batch(self, batch: List[CellData]) -> Dict[str, str]:
         # Prepare data for LLM using the new format
@@ -46,7 +47,8 @@ class LLMBatchProcessor:
             metadata={
                 "file_hash": hashlib.md5(json.dumps([c.__dict__ for c in batch]).encode()).hexdigest(),
                 "sheet_name": batch[0].sheet_name if batch else ""
-            }
+            },
+            additional_context=self.additional_context
         )
 
         # Send to LLM and get response
@@ -59,11 +61,12 @@ class LLMBatchProcessor:
         }
 
 class ExcelTranslator:
-    def __init__(self, llm_provider, cache, batch_size: int = 50):
+    def __init__(self, llm_provider, cache, batch_size: int = 50, additional_context: str = ""):
         self.llm_provider = llm_provider
         self.cache = cache
         self.batch_size = batch_size
-        self.batch_processor = LLMBatchProcessor(llm_provider, batch_size)
+        self.additional_context = additional_context
+        self.batch_processor = LLMBatchProcessor(llm_provider, batch_size, additional_context)
 
     def _should_translate_cell(self, cell) -> bool:
         # Skip empty cells, numbers, formulas
