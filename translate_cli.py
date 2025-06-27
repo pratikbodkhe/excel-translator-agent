@@ -133,7 +133,7 @@ def main():
             logger.warning(f"Context file not found: {context_path}")
 
     if args.mock:
-        from llm_providers import MockProvider
+        from src.llm_providers import MockProvider
         llm_provider = MockProvider()
         logger.info("Using mock LLM provider")
     else:
