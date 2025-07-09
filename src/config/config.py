@@ -20,9 +20,26 @@ class Config:
 
     # LLM provider configuration
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4.1")
+
+    @property
+    def LLM_MODEL(self) -> str:
+        # Use different default models based on provider
+        provider = self.LLM_PROVIDER.lower()
+        if provider == "ollama":
+            return os.getenv("LLM_MODEL", "gemma3:27b")
+        elif provider in ["google", "vertexai"]:
+            return os.getenv("LLM_MODEL", "gemini-2.5-pro")
+        else:
+            return os.getenv("LLM_MODEL", "gpt-4.1")
+
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+
+    # Google Vertex AI configuration
+    # Path to service account key file. If not set, application default credentials are used.
+    GOOGLE_APPLICATION_CREDENTIALS: str = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+    GOOGLE_PROJECT_ID: str = os.getenv("GOOGLE_PROJECT_ID", "")
+    GOOGLE_LOCATION: str = os.getenv("GOOGLE_LOCATION", "us-central1")
 
     # Caching strategy
     USE_POSTGRES: bool = os.getenv("USE_POSTGRES", "false").lower() == "true"
@@ -35,5 +52,6 @@ class Config:
     @property
     def redis_uri(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
 
 config = Config()

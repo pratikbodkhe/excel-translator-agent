@@ -55,10 +55,20 @@ def setup_cache():
 def setup_llm_provider():
     """Setup LLM provider based on configuration."""
     try:
+        provider_name = config.LLM_PROVIDER.lower()
+        provider_args = {"model": config.LLM_MODEL}
+
+        if provider_name == "openai":
+            provider_args["api_key"] = config.OPENAI_API_KEY
+        elif provider_name == "anthropic":
+            provider_args["api_key"] = config.ANTHROPIC_API_KEY
+        elif provider_name in ["google", "vertexai"]:
+            # The GOOGLE_APPLICATION_CREDENTIALS env var is used automatically by the client library
+            provider_args["project_id"] = config.GOOGLE_PROJECT_ID
+            provider_args["location"] = config.GOOGLE_LOCATION
+
         provider: BaseLLMProvider = create_llm_provider(
-            provider_name=config.LLM_PROVIDER,
-            api_key=config.OPENAI_API_KEY if config.LLM_PROVIDER == "openai" else config.ANTHROPIC_API_KEY,
-            model=config.LLM_MODEL
+            provider_name=provider_name, **provider_args
         )
 
         if not provider.is_available():
