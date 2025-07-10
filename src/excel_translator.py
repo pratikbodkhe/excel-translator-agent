@@ -187,7 +187,7 @@ class ExcelTranslator:
                 to_translate.append(cell)
 
         if to_translate:
-            logger.debug(f"Sending {len(to_translate)} cells to LLM")
+            logger.info(f"Sending {len(to_translate)} cells to LLM")
             # Process with LLM
             llm_translations = self.batch_processor.translate_batch(to_translate)
             logger.debug(f"LLM returned {len(llm_translations)} translations")

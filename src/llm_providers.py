@@ -113,7 +113,7 @@ Rules:
 - Keep technical terms consistent
 - For sheet names, use concise, professional English names
 - Use the additional context provided to improve accuracy
-- Return only the JSON object, no additional text"""
+- STRICTLY Return only the JSON object, no additional text"""
 
         return prompt
 
@@ -565,7 +565,7 @@ def create_llm_provider(provider_name: str, **kwargs) -> BaseLLMProvider:
     elif provider_name in ["google", "vertexai"]:
         project_id = kwargs.get("project_id")
         location = kwargs.get("location")
-        model = kwargs.get("model", "gemini-2.5-pro")
+        model = kwargs.get("model", "gemini-2.5-flash")
         if not project_id:
             raise ValueError("Google Cloud Project ID is required for Vertex AI")
         if not location:

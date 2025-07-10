@@ -114,14 +114,6 @@ def main():
 
         logger.info(f"Found {len(excel_files)} Excel files in directory: {input_path}")
 
-        # Setup output directory
-        if args.output:
-            output_dir = Path(args.output)
-        else:
-            output_dir = input_path / "translated"
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Output directory: {output_dir}")
 
     else:
         # Single file processing
@@ -197,14 +189,10 @@ def main():
 
             for i, excel_file in enumerate(excel_files, 1):
                 try:
-                    # Calculate relative path to maintain directory structure
-                    relative_path = excel_file.relative_to(input_path)
-                    output_file = output_dir / f"{relative_path.stem}_translated{relative_path.suffix}"
+                    # Save translated file in the same directory as the input file
+                    output_file = excel_file.parent / f"{excel_file.stem}_translated{excel_file.suffix}"
 
-                    # Ensure output subdirectory exists
-                    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-                    logger.info(f"[{i}/{len(excel_files)}] Translating: {relative_path}")
+                    logger.info(f"[{i}/{len(excel_files)}] Translating: {excel_file.name}")
                     translator.translate_excel(str(excel_file), str(output_file))
                     logger.info(f"[{i}/{len(excel_files)}] Completed: {output_file}")
                     success_count += 1
