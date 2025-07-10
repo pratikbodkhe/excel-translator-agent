@@ -85,8 +85,8 @@ def setup_llm_provider():
 
 def main():
     parser = argparse.ArgumentParser(description="Excel Translation Agent CLI")
-    parser.add_argument("input_path", help="Input Excel file or directory path")
-    parser.add_argument("-o", "--output", help="Output Excel file path. Ignored when input is a directory.")
+    parser.add_argument("input_path", help="Input Excel file path or directory path for batch processing")
+    parser.add_argument("-o", "--output", help="Output Excel file path (for single file) or output directory (for batch)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("--batch-size", type=int, default=20, help="Batch size for translation")
     parser.add_argument("--mock", action="store_true", help="Use mock LLM provider for testing")
@@ -97,6 +97,51 @@ def main():
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # Validate input path
+    input_path = Path(args.input_path)
+    if not input_path.exists():
+        logger.error(f"Input path not found: {input_path}")
+        return 1
+
+    # Check if input is a directory or file
+    if input_path.is_dir():
+        # Directory processing - find all Excel files recursively
+        excel_files = list(input_path.rglob("*.xlsx")) + list(input_path.rglob("*.xls"))
+        if not excel_files:
+            logger.error(f"No Excel files found in directory: {input_path}")
+            return 1
+
+        logger.info(f"Found {len(excel_files)} Excel files in directory: {input_path}")
+
+        # Setup output directory
+        if args.output:
+            output_dir = Path(args.output)
+        else:
+            output_dir = input_path / "translated"
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Output directory: {output_dir}")
+
+    else:
+        # Single file processing
+        if not input_path.suffix.lower() in ['.xlsx', '.xls']:
+            logger.error(f"Input file must be an Excel file (.xlsx or .xls)")
+            return 1
+
+        excel_files = [input_path]
+
+        # Setup output path for single file
+        if args.output:
+            output_path = Path(args.output)
+        else:
+            output_path = input_path.parent / f"{input_path.stem}_translated{input_path.suffix}"
+
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Input: {input_path}")
+        logger.info(f"Output: {output_path}")
 
     # Setup components
     cache = setup_cache()
@@ -138,76 +183,51 @@ def main():
         additional_context=additional_context
     )
 
-    # Validate and process input path
-    input_path = Path(args.input_path)
-    if not input_path.exists():
-        logger.error(f"Input path not found: {input_path}")
-        return 1
+    # Perform translation
+    try:
+        logger.info("Starting translation...")
+        logger.info(f"Using LLM provider: {type(llm_provider).__name__}")
+        logger.info(f"LLM provider available: {llm_provider.is_available()}")
 
-    if input_path.is_dir():
-        if args.output:
-            logger.warning("The --output argument is ignored when processing a directory. Translated files will be saved next to their originals.")
+        if input_path.is_dir():
+            # Directory batch processing
+            logger.info(f"Processing {len(excel_files)} Excel files...")
+            success_count = 0
+            error_count = 0
 
-        logger.info(f"Processing directory: {input_path}")
-        excel_files = list(input_path.rglob('*.xlsx')) + list(input_path.rglob('*.xls'))
+            for i, excel_file in enumerate(excel_files, 1):
+                try:
+                    # Calculate relative path to maintain directory structure
+                    relative_path = excel_file.relative_to(input_path)
+                    output_file = output_dir / f"{relative_path.stem}_translated{relative_path.suffix}"
 
-        if not excel_files:
-            logger.info(f"No Excel files (.xlsx, .xls) found in directory: {input_path}")
-            return 0
+                    # Ensure output subdirectory exists
+                    output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Found {len(excel_files)} Excel file(s) to translate.")
-        total_files = len(excel_files)
-        success_count = 0
+                    logger.info(f"[{i}/{len(excel_files)}] Translating: {relative_path}")
+                    translator.translate_excel(str(excel_file), str(output_file))
+                    logger.info(f"[{i}/{len(excel_files)}] Completed: {output_file}")
+                    success_count += 1
 
-        for i, file_path in enumerate(excel_files):
-            logger.info(f"--- Translating file {i+1}/{total_files}: {file_path} ---")
-            output_file = file_path.parent / f"{file_path.stem}_translated{file_path.suffix}"
+                except Exception as e:
+                    logger.error(f"[{i}/{len(excel_files)}] Failed to translate {excel_file}: {e}")
+                    error_count += 1
+                    continue
 
-            try:
-                translator.translate_excel(str(file_path), str(output_file))
-                logger.info(f"Successfully translated '{file_path.name}' to '{output_file.name}'")
-                success_count += 1
-            except Exception as e:
-                logger.error(f"Failed to translate file {file_path}: {e}")
-                import traceback
-                traceback.print_exc()
+            logger.info(f"Batch translation completed: {success_count} successful, {error_count} failed")
+            return 0 if error_count == 0 else 1
 
-        failure_count = total_files - success_count
-        logger.info("--- Directory translation summary ---")
-        logger.info(f"Total files processed: {total_files}")
-        logger.info(f"Successful translations: {success_count}")
-        logger.info(f"Failed translations: {failure_count}")
-        return 1 if failure_count > 0 else 0
-
-    elif input_path.is_file():
-        if not input_path.suffix.lower() in ['.xlsx', '.xls']:
-            logger.error(f"Input file must be an Excel file (.xlsx or .xls)")
-            return 1
-
-        if args.output:
-            output_path = Path(args.output)
         else:
-            output_path = input_path.parent / f"{input_path.stem}_translated{input_path.suffix}"
-
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        logger.info(f"Input: {input_path}")
-        logger.info(f"Output: {output_path}")
-
-        try:
-            logger.info("Starting translation...")
-            logger.info(f"Using LLM provider: {type(llm_provider).__name__}")
-            logger.info(f"LLM provider available: {llm_provider.is_available()}")
-            translator.translate_excel(str(input_path), str(output_path))
+            # Single file processing - use the single excel_file from the list
+            excel_file = excel_files[0]
+            translator.translate_excel(str(excel_file), str(output_path))
             logger.info(f"Translation completed successfully: {output_path}")
             return 0
-        except Exception as e:
-            logger.error(f"Translation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return 1
-    else:
-        logger.error(f"Input path is not a valid file or directory: {input_path}")
+
+    except Exception as e:
+        logger.error(f"Translation failed: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
 
 
